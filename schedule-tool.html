@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スケジュール自動登録ツール</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+      color: #1a202c;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #2d3748;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: #718096;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 28px 32px;
+      width: 100%;
+      max-width: 520px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a0aec0;
+      margin-bottom: 16px;
+    }
+
+    /* Setup card */
+    .setup-card { border-left: 4px solid #667eea; }
+    .setup-steps { font-size: 0.85rem; color: #4a5568; line-height: 1.9; }
+    .setup-steps code {
+      background: #edf2f7;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      color: #553c9a;
+    }
+    .step-badge {
+      display: inline-block;
+      background: #667eea;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 20px;
+      margin-right: 6px;
+    }
+
+    /* Client ID input */
+    .client-id-wrap { margin-top: 16px; }
+    .client-id-wrap label { font-size: 0.85rem; font-weight: 600; color: #4a5568; display: block; margin-bottom: 6px; }
+    .client-id-wrap input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      color: #2d3748;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .client-id-wrap input:focus { border-color: #667eea; }
+
+    /* Google sign-in button */
+    .btn-google {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 12px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #2d3748;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      margin-top: 14px;
+    }
+    .btn-google:hover { background: #f7fafc; border-color: #cbd5e0; }
+    .btn-google svg { flex-shrink: 0; }
+
+    /* Login status */
+    .login-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      margin-top: 12px;
+    }
+    .status-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: #cbd5e0;
+    }
+    .status-dot.connected { background: #48bb78; }
+    .status-dot.error { background: #f56565; }
+
+    /* Form */
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 6px;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #2d3748;
+      transition: border-color 0.2s;
+      outline: none;
+      font-family: inherit;
+    }
+    .form-group input:focus, .form-group textarea:focus { border-color: #667eea; }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+
+    .row { display: flex; gap: 12px; }
+    .row .form-group { flex: 1; }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: #ebf4ff;
+      color: #3182ce;
+      border-radius: 4px;
+      padding: 1px 6px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .tag.green { background: #f0fff4; color: #38a169; }
+
+    /* Submit button */
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 6px;
+    }
+    .btn-submit:hover { opacity: 0.92; transform: translateY(-1px); }
+    .btn-submit:active { transform: translateY(0); }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Result messages */
+    .result {
+      display: none;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-top: 16px;
+    }
+    .result.success {
+      display: block;
+      background: #f0fff4;
+      border: 1.5px solid #9ae6b4;
+      color: #276749;
+    }
+    .result.error {
+      display: block;
+      background: #fff5f5;
+      border: 1.5px solid #feb2b2;
+      color: #9b2c2c;
+    }
+    .result .result-icon { font-size: 1.2rem; margin-bottom: 4px; }
+
+    /* Spinner */
+    .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading .spinner { display: inline-block; }
+    .loading .btn-text { display: none; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #e2e8f0;
+      margin: 20px 0;
+    }
+
+    footer {
+      font-size: 0.8rem;
+      color: #a0aec0;
+      margin-top: 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📅 スケジュール自動登録</h1>
+  <p class="subtitle">行事をGoogleカレンダー＆タスクに一括登録</p>
+
+  <!-- ① 初期設定カード -->
+  <div class="card setup-card" id="setupCard">
+    <div class="card-title">⚙️ 初期設定（初回のみ）</div>
+    <div class="setup-steps">
+      <div><span class="step-badge">1</span><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> でプロジェクトを作成</div>
+      <div><span class="step-badge">2</span>「APIとサービス」→「ライブラリ」から <code>Google Calendar API</code> と <code>Tasks API</code> を有効化</div>
+      <div><span class="step-badge">3</span>「認証情報」→「OAuthクライアントID作成」→ 種類は <code>ウェブアプリケーション</code> を選択</div>
+      <div><span class="step-badge">4</span>「承認済みのJavaScript生成元」に <code>null</code> または <code>http://localhost</code> を追加</div>
+      <div><span class="step-badge">5</span>作成されたクライアントIDを下に貼り付けてください</div>
+    </div>
+    <div class="client-id-wrap">
+      <label for="clientIdInput">クライアントID</label>
+      <input type="text" id="clientIdInput" placeholder="xxxxxxxxxx.apps.googleusercontent.com">
+    </div>
+  </div>
+
+  <!-- ② 認証カード -->
+  <div class="card">
+    <div class="card-title">🔑 Googleアカウント連携</div>
+    <button class="btn-google" id="btnSignIn" onclick="handleSignIn()">
+      <svg width="20" height="20" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Googleアカウントでサインイン
+    </button>
+    <div class="login-status" id="loginStatus">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">未接続</span>
+    </div>
+  </div>
+
+  <!-- ③ 入力フォームカード -->
+  <div class="card" id="formCard">
+    <div class="card-title">📝 行事を登録する</div>
+
+    <div class="form-group">
+      <label for="eventTitle">
+        行事名 <span class="tag">カレンダー</span><span class="tag green">タスク</span>
+      </label>
+      <input type="text" id="eventTitle" placeholder="例：部署会議、クライアント訪問">
+    </div>
+
+    <div class="row">
+      <div class="form-group">
+        <label for="startDateTime">開始日時</label>
+        <input type="datetime-local" id="startDateTime">
+      </div>
+      <div class="form-group">
+        <label for="endDateTime">終了日時</label>
+        <input type="datetime-local" id="endDateTime">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="location">場所 <span class="tag">カレンダー</span></label>
+      <input type="text" id="location" placeholder="例：会議室A、東京都渋谷区〇〇">
+    </div>
+
+    <div class="form-group">
+      <label for="memo">メモ（任意）<span class="tag green">タスク</span></label>
+      <textarea id="memo" placeholder="タスクに追記したい内容があれば入力してください"></textarea>
+    </div>
+
+    <hr class="divider">
+
+    <button class="btn-submit" id="btnSubmit" onclick="submitEvent()" disabled>
+      <span class="btn-text">📤 カレンダー＆タスクに登録する</span>
+      <span class="spinner"></span>
+    </button>
+
+    <div class="result" id="resultBox"></div>
+  </div>
+
+  <footer>Google Calendar API / Google Tasks API 使用</footer>
+
+  <!-- Google API ライブラリ読み込み -->
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script src="https://accounts.google.com/gsi/client"></script>
+
+  <script>
+    const SCOPES = [
+      'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/tasks'
+    ].join(' ');
+
+    let tokenClient = null;
+    let gapiInited = false;
+    let gisInited = false;
+    let isSignedIn = false;
+
+    // gapi 初期化
+    function gapiLoaded() {
+      gapi.load('client', async () => {
+        await gapi.client.init({});
+        await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest');
+        await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest');
+        gapiInited = true;
+        maybeEnableButtons();
+      });
+    }
+
+    // GIS 初期化
+    function gisLoaded() {
+      gisInited = true;
+    }
+
+    function maybeEnableButtons() {
+      if (gapiInited && gisInited) {
+        document.getElementById('btnSignIn').disabled = false;
+      }
+    }
+
+    // サインイン処理
+    function handleSignIn() {
+      const clientId = document.getElementById('clientIdInput').value.trim();
+      if (!clientId) {
+        alert('クライアントIDを入力してください（初期設定を参照）');
+        return;
+      }
+
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: SCOPES,
+        callback: (resp) => {
+          if (resp.error) {
+            setStatus('error', 'サインインに失敗しました: ' + resp.error);
+            return;
+          }
+          isSignedIn = true;
+          gapi.client.setToken(resp);
+          setStatus('connected', 'Googleアカウントに接続済み');
+          document.getElementById('btnSubmit').disabled = false;
+          document.getElementById('btnSignIn').textContent = '✅ 再認証する';
+        }
+      });
+
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    }
+
+    function setStatus(type, text) {
+      const dot = document.getElementById('statusDot');
+      const label = document.getElementById('statusText');
+      dot.className = 'status-dot ' + (type === 'connected' ? 'connected' : type === 'error' ? 'error' : '');
+      label.textContent = text;
+    }
+
+    // 登録処理
+    async function submitEvent() {
+      const title    = document.getElementById('eventTitle').value.trim();
+      const start    = document.getElementById('startDateTime').value;
+      const end      = document.getElementById('endDateTime').value;
+      const location = document.getElementById('location').value.trim();
+      const memo     = document.getElementById('memo').value.trim();
+
+      if (!title)  { showResult('error', '行事名を入力してください。'); return; }
+      if (!start)  { showResult('error', '開始日時を入力してください。'); return; }
+      if (!end)    { showResult('error', '終了日時を入力してください。'); return; }
+      if (new Date(start) >= new Date(end)) {
+        showResult('error', '終了日時は開始日時より後にしてください。'); return;
+      }
+
+      setLoading(true);
+      document.getElementById('resultBox').style.display = 'none';
+
+      try {
+        // ── Google カレンダーに追加 ──
+        const eventBody = {
+          summary: title,
+          location: location || undefined,
+          start: { dateTime: new Date(start).toISOString(), timeZone: 'Asia/Tokyo' },
+          end:   { dateTime: new Date(end).toISOString(),   timeZone: 'Asia/Tokyo' }
+        };
+        if (memo) eventBody.description = memo;
+
+        const calResp = await gapi.client.calendar.events.insert({
+          calendarId: 'primary',
+          resource: eventBody
+        });
+        const calLink = calResp.result.htmlLink;
+
+        // ── Google タスクの「仕事」リストを検索 ──
+        const listsResp = await gapi.client.tasks.tasklists.list({ maxResults: 100 });
+        const lists = listsResp.result.items || [];
+        const shigojiList = lists.find(l => l.title === '仕事');
+
+        if (!shigojiList) {
+          showResult('error',
+            'カレンダーへの登録は成功しましたが、Googleタスクに「仕事」というリストが見つかりませんでした。\n' +
+            'Google タスクで「仕事」リストを作成してから再試行してください。'
+          );
+          setLoading(false);
+          return;
+        }
+
+        // ── タスクに追加 ──
+        const startFormatted = formatDateTime(start);
+        const endFormatted   = formatDateTime(end);
+
+        let taskNote = `📅 ${startFormatted} ～ ${endFormatted}`;
+        if (location) taskNote += `\n📍 ${location}`;
+        if (memo)     taskNote += `\n📝 ${memo}`;
+
+        await gapi.client.tasks.tasks.insert({
+          tasklist: shigojiList.id,
+          resource: {
+            title: title,
+            notes: taskNote,
+            due: new Date(start).toISOString()
+          }
+        });
+
+        showResult('success',
+          `✅ 登録が完了しました！\n\n` +
+          `📅 Googleカレンダーに「${title}」を追加しました。\n` +
+          `✔️ タスク「仕事」リストにも追加しました。\n\n` +
+          `<a href="${calLink}" target="_blank" style="color:#276749;font-weight:600;">📎 カレンダーで確認する →</a>`
+        );
+
+        // フォームリセット
+        document.getElementById('eventTitle').value = '';
+        document.getElementById('startDateTime').value = '';
+        document.getElementById('endDateTime').value = '';
+        document.getElementById('location').value = '';
+        document.getElementById('memo').value = '';
+
+      } catch (err) {
+        console.error(err);
+        const msg = err.result?.error?.message || err.message || '不明なエラー';
+        if (msg.includes('invalid_token') || msg.includes('401')) {
+          showResult('error', 'アクセストークンが切れました。再度サインインしてください。');
+          isSignedIn = false;
+          setStatus('error', '再認証が必要です');
+          document.getElementById('btnSubmit').disabled = true;
+        } else {
+          showResult('error', `エラーが発生しました:\n${msg}`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function setLoading(flag) {
+      const btn = document.getElementById('btnSubmit');
+      if (flag) btn.classList.add('loading');
+      else btn.classList.remove('loading');
+      btn.disabled = flag;
+    }
+
+    function showResult(type, html) {
+      const box = document.getElementById('resultBox');
+      box.className = 'result ' + type;
+      box.innerHTML = html.replace(/\n/g, '<br>');
+      box.style.display = 'block';
+    }
+
+    function formatDateTime(dt) {
+      const d = new Date(dt);
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // ライブラリ読み込み後に初期化
+    window.addEventListener('load', () => {
+      if (typeof gapi !== 'undefined') gapiLoaded();
+      if (typeof google !== 'undefined') gisLoaded();
+    });
+
+    // gapi/gis の非同期読み込みに対応
+    document.querySelector('script[src*="api.js"]').addEventListener('load', gapiLoaded);
+    document.querySelector('script[src*="gsi/client"]').addEventListener('load', gisLoaded);
+  </script>
+</body>
+</html>
